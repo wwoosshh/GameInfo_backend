@@ -1,6 +1,6 @@
 <?php
 /**
- * Notification 모델 클래스
+ * Notification 모델 클래스 - 커뮤니티 공지사항 관리
  */
 
 require_once __DIR__ . '/../config/database.php';
@@ -14,7 +14,7 @@ class Notification {
     }
 
     /**
-     * 알림 생성
+     * 공지사항 생성 (관리자만)
      */
     public function create($data) {
         $sql = "INSERT INTO {$this->table}
@@ -25,8 +25,8 @@ class Notification {
         try {
             $stmt = $this->db->prepare($sql);
             $stmt->execute([
-                ':user_id' => $data['user_id'],
-                ':type' => $data['type'], // 'comment', 'like', 'mention', 'system' 등
+                ':user_id' => $data['user_id'], // 공지사항 작성자 (관리자)
+                ':type' => 'announcement', // 공지사항 타입
                 ':title' => $data['title'],
                 ':content' => $data['content'] ?? null,
                 ':link_url' => $data['link_url'] ?? null
@@ -40,125 +40,85 @@ class Notification {
     }
 
     /**
-     * 사용자의 알림 목록 조회
+     * 활성 공지사항 목록 조회
      */
-    public function getUserNotifications($userId, $page = 1, $limit = 20) {
-        $offset = ($page - 1) * $limit;
-
-        $sql = "SELECT * FROM {$this->table}
-                WHERE user_id = :user_id
-                ORDER BY created_at DESC
-                LIMIT :limit OFFSET :offset";
+    public function getActiveAnnouncements() {
+        $sql = "SELECT n.*,
+                    u.username,
+                    u.display_name
+                FROM {$this->table} n
+                JOIN users u ON n.user_id = u.user_id
+                WHERE n.type = 'announcement'
+                ORDER BY n.created_at DESC";
 
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
-            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
-            $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
             $stmt->execute();
-
             return $stmt->fetchAll();
         } catch (PDOException $e) {
-            error_log('Notification::getUserNotifications - ' . $e->getMessage());
+            error_log('Notification::getActiveAnnouncements - ' . $e->getMessage());
             return [];
         }
     }
 
     /**
-     * 읽지 않은 알림 수 조회
+     * 공지사항 상세 조회
      */
-    public function getUnreadCount($userId) {
-        $sql = "SELECT COUNT(*) as count FROM {$this->table}
-                WHERE user_id = :user_id AND is_read = false";
+    public function getById($notificationId) {
+        $sql = "SELECT n.*,
+                    u.username,
+                    u.display_name
+                FROM {$this->table} n
+                JOIN users u ON n.user_id = u.user_id
+                WHERE n.notification_id = :notification_id";
 
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->execute([':user_id' => $userId]);
-            $result = $stmt->fetch();
-            return $result['count'];
+            $stmt->execute([':notification_id' => $notificationId]);
+            return $stmt->fetch();
         } catch (PDOException $e) {
-            error_log('Notification::getUnreadCount - ' . $e->getMessage());
-            return 0;
+            error_log('Notification::getById - ' . $e->getMessage());
+            return false;
         }
     }
 
     /**
-     * 알림 읽음 처리
+     * 공지사항 수정
      */
-    public function markAsRead($notificationId, $userId) {
-        $sql = "UPDATE {$this->table} SET is_read = true
-                WHERE notification_id = :notification_id AND user_id = :user_id";
+    public function update($notificationId, $data) {
+        $sql = "UPDATE {$this->table} SET
+                title = :title,
+                content = :content,
+                link_url = :link_url
+                WHERE notification_id = :notification_id";
 
         try {
             $stmt = $this->db->prepare($sql);
             return $stmt->execute([
                 ':notification_id' => $notificationId,
-                ':user_id' => $userId
+                ':title' => $data['title'],
+                ':content' => $data['content'] ?? null,
+                ':link_url' => $data['link_url'] ?? null
             ]);
         } catch (PDOException $e) {
-            error_log('Notification::markAsRead - ' . $e->getMessage());
+            error_log('Notification::update - ' . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * 모든 알림 읽음 처리
+     * 공지사항 삭제
      */
-    public function markAllAsRead($userId) {
-        $sql = "UPDATE {$this->table} SET is_read = true
-                WHERE user_id = :user_id AND is_read = false";
-
-        try {
-            $stmt = $this->db->prepare($sql);
-            return $stmt->execute([':user_id' => $userId]);
-        } catch (PDOException $e) {
-            error_log('Notification::markAllAsRead - ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * 알림 삭제
-     */
-    public function delete($notificationId, $userId) {
+    public function delete($notificationId) {
         $sql = "DELETE FROM {$this->table}
-                WHERE notification_id = :notification_id AND user_id = :user_id";
+                WHERE notification_id = :notification_id";
 
         try {
             $stmt = $this->db->prepare($sql);
-            return $stmt->execute([
-                ':notification_id' => $notificationId,
-                ':user_id' => $userId
-            ]);
+            return $stmt->execute([':notification_id' => $notificationId]);
         } catch (PDOException $e) {
             error_log('Notification::delete - ' . $e->getMessage());
             return false;
         }
-    }
-
-    /**
-     * 댓글 알림 생성 헬퍼
-     */
-    public function createCommentNotification($postAuthorId, $commenterName, $postId, $postTitle) {
-        return $this->create([
-            'user_id' => $postAuthorId,
-            'type' => 'comment',
-            'title' => '새 댓글',
-            'content' => "{$commenterName}님이 '{$postTitle}'에 댓글을 남겼습니다.",
-            'link_url' => "/community_post.html?id={$postId}"
-        ]);
-    }
-
-    /**
-     * 좋아요 알림 생성 헬퍼
-     */
-    public function createLikeNotification($postAuthorId, $likerName, $postId, $postTitle) {
-        return $this->create([
-            'user_id' => $postAuthorId,
-            'type' => 'like',
-            'title' => '좋아요',
-            'content' => "{$likerName}님이 '{$postTitle}'을 좋아합니다.",
-            'link_url' => "/community_post.html?id={$postId}"
-        ]);
     }
 }

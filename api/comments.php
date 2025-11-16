@@ -7,7 +7,7 @@
 require_once __DIR__ . '/../cors.php';
 require_once __DIR__ . '/../models/Comment.php';
 require_once __DIR__ . '/../models/Post.php';
-require_once __DIR__ . '/../models/Notification.php';
+require_once __DIR__ . '/../models/ActivityLog.php';
 require_once __DIR__ . '/../utils/Auth.php';
 require_once __DIR__ . '/../utils/Response.php';
 
@@ -156,19 +156,9 @@ function handleCreateComment($commentModel) {
         Response::error('Failed to create comment', 500);
     }
 
-    // 게시글 작성자에게 알림 생성 (자기 게시글 제외)
-    $postModel = new Post();
-    $post = $postModel->getById($commentData['post_id']);
-
-    if ($post && $post['user_id'] !== $user['user_id']) {
-        $notificationModel = new Notification();
-        $notificationModel->createCommentNotification(
-            $post['user_id'],
-            $user['display_name'] ?? $user['username'],
-            $commentData['post_id'],
-            $post['title']
-        );
-    }
+    // 활동 로그 기록
+    $activityLog = new ActivityLog();
+    $activityLog->logComment($user['user_id'], $commentId, $commentData['post_id']);
 
     // 생성된 댓글 조회
     $comment = $commentModel->getById($commentId);

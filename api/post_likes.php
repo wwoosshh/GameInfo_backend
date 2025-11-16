@@ -6,7 +6,7 @@
 
 require_once __DIR__ . '/../cors.php';
 require_once __DIR__ . '/../models/PostLike.php';
-require_once __DIR__ . '/../models/Notification.php';
+require_once __DIR__ . '/../models/ActivityLog.php';
 require_once __DIR__ . '/../models/Post.php';
 require_once __DIR__ . '/../utils/Auth.php';
 require_once __DIR__ . '/../utils/Response.php';
@@ -77,19 +77,9 @@ function handleLike($postLikeModel, $postId, $user) {
         Response::error('Already liked or failed to like', 400);
     }
 
-    // 알림 생성 (자기 게시글은 제외)
-    $postModel = new Post();
-    $post = $postModel->getById($postId);
-
-    if ($post && $post['user_id'] !== $user['user_id']) {
-        $notificationModel = new Notification();
-        $notificationModel->createLikeNotification(
-            $post['user_id'],
-            $user['display_name'] ?? $user['username'],
-            $postId,
-            $post['title']
-        );
-    }
+    // 활동 로그 기록
+    $activityLog = new ActivityLog();
+    $activityLog->logPostLike($user['user_id'], $postId);
 
     Response::success([
         'liked' => true,
