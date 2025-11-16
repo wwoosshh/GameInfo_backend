@@ -4,24 +4,17 @@
  * 모든 API 파일에서 include하여 사용
  */
 
-// Load environment config
-$envFile = __DIR__ . '/../config/.env';
-$allowedOrigins = ['http://localhost:8000', 'http://localhost:3000'];
-$environment = 'development';
+// Load allowed origins from environment variable or use defaults
+$allowedOrigins = getenv('ALLOWED_ORIGINS')
+    ? explode(',', getenv('ALLOWED_ORIGINS'))
+    : [
+        'http://localhost:8000',
+        'http://localhost:3000',
+        'https://game-info-frontend.vercel.app',
+        'https://game-info-frontend-g3y34b47q-wwoosshhs-projects.vercel.app'
+    ];
 
-if (file_exists($envFile)) {
-    // Use INI_SCANNER_RAW to avoid parsing issues with comments
-    $env = @parse_ini_file($envFile, false, INI_SCANNER_RAW);
-    if ($env !== false) {
-        if (isset($env['ALLOWED_ORIGINS'])) {
-            $allowedOrigins = explode(',', $env['ALLOWED_ORIGINS']);
-            $allowedOrigins = array_map('trim', $allowedOrigins);
-        }
-        if (isset($env['ENVIRONMENT'])) {
-            $environment = $env['ENVIRONMENT'];
-        }
-    }
-}
+$allowedOrigins = array_map('trim', $allowedOrigins);
 
 // Get origin from request
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -30,8 +23,11 @@ $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($origin, $allowedOrigins)) {
     header("Access-Control-Allow-Origin: $origin");
 } else {
-    // In development, allow all. In production, this should be restricted
-    if ($environment === 'development') {
+    // Allow all Vercel preview deployments
+    if (preg_match('/\.vercel\.app$/', $origin)) {
+        header("Access-Control-Allow-Origin: $origin");
+    } else {
+        // Fallback: allow all (can be restricted later)
         header('Access-Control-Allow-Origin: *');
     }
 }
