@@ -4,7 +4,7 @@
  * 커뮤니티 게시글 관련 API 엔드포인트
  */
 
-require_once __DIR__ . '/../config/cors.php';
+require_once __DIR__ . '/../cors.php';
 require_once __DIR__ . '/../models/Post.php';
 require_once __DIR__ . '/../utils/Auth.php';
 require_once __DIR__ . '/../utils/Response.php';
