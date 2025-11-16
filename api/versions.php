@@ -189,11 +189,8 @@ function getVersionDetail($db, $versionId) {
 function getVersionItems($db, $versionId) {
     $category = isset($_GET['category']) ? $_GET['category'] : null;
 
-    $sql = "SELECT
-                vui.*,
-                c.character_name
+    $sql = "SELECT vui.*
             FROM version_update_items vui
-            LEFT JOIN characters c ON vui.character_id = c.character_id
             WHERE vui.version_id = :version_id";
 
     if ($category) {
