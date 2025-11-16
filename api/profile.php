@@ -76,8 +76,7 @@ function handleGetProfile($user) {
     $db = Database::getInstance()->getConnection();
 
     $sql = "SELECT user_id, username, email, display_name, avatar_url,
-                   bio, is_admin, is_active, email_verified,
-                   created_at, last_login_at
+                   bio, is_active, created_at, last_login_at
             FROM users
             WHERE user_id = :user_id";
 
@@ -319,7 +318,7 @@ function handleGetUserReports($user) {
             LEFT JOIN comments c ON r.reported_type = 'comment' AND r.reported_id = c.comment_id
             LEFT JOIN users pu ON p.user_id = pu.user_id
             LEFT JOIN users cu ON c.user_id = cu.user_id
-            WHERE r.reporter_id = :user_id
+            WHERE r.reporter_user_id = :user_id
             ORDER BY r.created_at DESC
             LIMIT :limit OFFSET :offset";
 
@@ -332,7 +331,7 @@ function handleGetUserReports($user) {
         $reports = $stmt->fetchAll();
 
         // 전체 개수 조회
-        $countSql = "SELECT COUNT(*) as count FROM reports WHERE reporter_id = :user_id";
+        $countSql = "SELECT COUNT(*) as count FROM reports WHERE reporter_user_id = :user_id";
         $countStmt = $db->prepare($countSql);
         $countStmt->execute([':user_id' => $user['user_id']]);
         $totalCount = $countStmt->fetch()['count'];
