@@ -91,28 +91,32 @@ class Game {
     public function getAllWithLatestVersion($page = 1, $limit = 20, $filters = []) {
         $offset = ($page - 1) * $limit;
 
-        // JOIN으로 최신 버전 정보를 한 번에 가져오기
+        // LATERAL JOIN과 조건부 집계로 최적화된 쿼리
         $sql = "SELECT g.*,
-                    gv.version_id,
-                    gv.version_number,
-                    gv.version_name,
-                    gv.release_date,
-                    gv.is_current,
-                    (SELECT COUNT(*) FROM version_update_items vui
-                     WHERE vui.version_id = gv.version_id AND vui.category = 'new_character') as new_characters,
-                    (SELECT COUNT(*) FROM version_update_items vui
-                     WHERE vui.version_id = gv.version_id AND vui.category = 'new_event') as new_events,
-                    (SELECT COUNT(*) FROM version_update_items vui
-                     WHERE vui.version_id = gv.version_id) as total_items
+                    latest.version_id,
+                    latest.version_number,
+                    latest.version_name,
+                    latest.release_date,
+                    latest.is_current,
+                    COALESCE(stats.new_characters, 0) as new_characters,
+                    COALESCE(stats.new_events, 0) as new_events,
+                    COALESCE(stats.total_items, 0) as total_items
                 FROM {$this->table} g
-                LEFT JOIN game_versions gv ON g.game_id = gv.game_id
-                    AND gv.version_id = (
-                        SELECT version_id
-                        FROM game_versions
-                        WHERE game_id = g.game_id
-                        ORDER BY release_date DESC
-                        LIMIT 1
-                    )
+                LEFT JOIN LATERAL (
+                    SELECT version_id, version_number, version_name, release_date, is_current
+                    FROM game_versions
+                    WHERE game_id = g.game_id
+                    ORDER BY release_date DESC
+                    LIMIT 1
+                ) latest ON true
+                LEFT JOIN LATERAL (
+                    SELECT
+                        COUNT(CASE WHEN category = 'new_character' THEN 1 END) as new_characters,
+                        COUNT(CASE WHEN category = 'new_event' THEN 1 END) as new_events,
+                        COUNT(*) as total_items
+                    FROM version_update_items
+                    WHERE version_id = latest.version_id
+                ) stats ON true
                 WHERE g.is_active = true";
         $params = [];
 
