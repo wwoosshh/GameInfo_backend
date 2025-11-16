@@ -123,7 +123,7 @@ function getVersionsByGame($db, $gameId) {
             JOIN games g ON v.game_id = g.game_id
             LEFT JOIN version_update_items vui ON v.version_id = vui.version_id
             WHERE v.game_id = :game_id
-            GROUP BY v.version_id
+            GROUP BY v.version_id, g.game_name
             ORDER BY v.release_date DESC";
 
     try {
