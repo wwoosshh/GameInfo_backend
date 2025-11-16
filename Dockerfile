@@ -18,6 +18,9 @@ RUN docker-php-ext-install \
 # Apache 모듈 활성화
 RUN a2enmod rewrite headers
 
+# Apache ServerName 설정 (경고 제거)
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
 # Apache 설정 - DocumentRoot를 /var/www/html/public으로 변경
 ENV APACHE_DOCUMENT_ROOT=/var/www/html
 
