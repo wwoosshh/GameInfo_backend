@@ -29,15 +29,15 @@ class Auth {
     }
 
     /**
-     * JWT 토큰 생성
+     * JWT 토큰 생성 (RBAC 지원)
      */
-    public static function generateToken($userId, $username, $isAdmin = false) {
+    public static function generateToken($userId, $username, $roles = []) {
         $header = base64_encode(json_encode(['typ' => 'JWT', 'alg' => 'HS256']));
 
         $payload = base64_encode(json_encode([
             'user_id' => $userId,
             'username' => $username,
-            'is_admin' => $isAdmin,
+            'roles' => $roles, // RBAC: 역할 배열
             'iat' => time(),
             'exp' => time() + (7 * 24 * 60 * 60) // 7일
         ]));
@@ -117,18 +117,65 @@ class Auth {
     }
 
     /**
-     * 관리자 권한 확인
+     * 사용자가 특정 역할을 가지고 있는지 확인
+     */
+    public static function hasRole($user, $roleName) {
+        if (!$user || !isset($user['roles'])) {
+            return false;
+        }
+
+        return in_array($roleName, $user['roles']);
+    }
+
+    /**
+     * 사용자가 관리자 권한을 가지고 있는지 확인
+     */
+    public static function isAdmin($user = null) {
+        if ($user === null) {
+            $user = self::getCurrentUser();
+        }
+
+        if (!$user) {
+            return false;
+        }
+
+        return self::hasRole($user, 'admin') || self::hasRole($user, 'super_admin');
+    }
+
+    /**
+     * 관리자 권한 확인 (필수)
      */
     public static function requireAdmin() {
         $user = self::getCurrentUser();
 
-        if (!$user || !$user['is_admin']) {
+        if (!self::isAdmin($user)) {
             http_response_code(403);
             echo json_encode([
                 'success' => false,
                 'error' => [
                     'code' => 'FORBIDDEN',
                     'message' => 'Admin access required'
+                ]
+            ]);
+            exit;
+        }
+
+        return $user;
+    }
+
+    /**
+     * 특정 역할 요구
+     */
+    public static function requireRole($roleName) {
+        $user = self::getCurrentUser();
+
+        if (!self::hasRole($user, $roleName)) {
+            http_response_code(403);
+            echo json_encode([
+                'success' => false,
+                'error' => [
+                    'code' => 'FORBIDDEN',
+                    'message' => "Role '{$roleName}' required"
                 ]
             ]);
             exit;

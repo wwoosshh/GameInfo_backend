@@ -83,4 +83,44 @@ class User {
             return false;
         }
     }
+
+    /**
+     * 사용자 역할 조회 (RBAC)
+     */
+    public function getUserRoles($userId) {
+        $sql = "SELECT r.role_name
+                FROM user_roles ur
+                JOIN roles r ON ur.role_id = r.role_id
+                WHERE ur.user_id = :user_id";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':user_id' => $userId]);
+            $roles = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            return $roles ?: ['user']; // 기본값: user 역할
+        } catch (PDOException $e) {
+            error_log('User::getUserRoles - ' . $e->getMessage());
+            return ['user'];
+        }
+    }
+
+    /**
+     * 사용자에게 역할 부여
+     */
+    public function assignRole($userId, $roleName) {
+        $sql = "INSERT INTO user_roles (user_id, role_id)
+                SELECT :user_id, role_id FROM roles WHERE role_name = :role_name
+                ON CONFLICT (user_id, role_id) DO NOTHING";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            return $stmt->execute([
+                ':user_id' => $userId,
+                ':role_name' => $roleName
+            ]);
+        } catch (PDOException $e) {
+            error_log('User::assignRole - ' . $e->getMessage());
+            return false;
+        }
+    }
 }

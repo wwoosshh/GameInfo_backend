@@ -71,11 +71,14 @@ function handleLogin($userModel) {
         Response::error('Invalid username or password', 'INVALID_CREDENTIALS', 401);
     }
 
-    // 토큰 생성
+    // 사용자 역할 조회 (RBAC)
+    $roles = $userModel->getUserRoles($user['user_id']);
+
+    // 토큰 생성 (역할 포함)
     $token = Auth::generateToken(
         $user['user_id'],
         $user['username'],
-        $user['is_admin'] == 1
+        $roles
     );
 
     // 마지막 로그인 시간 업데이트
@@ -88,7 +91,8 @@ function handleLogin($userModel) {
             'username' => $user['username'],
             'email' => $user['email'],
             'display_name' => $user['display_name'],
-            'is_admin' => $user['is_admin'] == 1
+            'roles' => $roles,
+            'is_admin' => in_array('admin', $roles) || in_array('super_admin', $roles)
         ]
     ], 'Login successful');
 }
@@ -134,8 +138,11 @@ function handleRegister($userModel) {
         Response::serverError('Failed to create user');
     }
 
-    // 토큰 생성
-    $token = Auth::generateToken($userId, $input['username'], false);
+    // 기본 역할 부여 (user)
+    $userModel->assignRole($userId, 'user');
+
+    // 토큰 생성 (user 역할 포함)
+    $token = Auth::generateToken($userId, $input['username'], ['user']);
 
     Response::success([
         'token' => $token,
@@ -144,6 +151,7 @@ function handleRegister($userModel) {
             'username' => $input['username'],
             'email' => $input['email'],
             'display_name' => $input['display_name'] ?? $input['username'],
+            'roles' => ['user'],
             'is_admin' => false
         ]
     ], 'Registration successful', 201);
