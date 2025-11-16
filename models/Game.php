@@ -6,13 +6,16 @@
  */
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../utils/Cache.php';
 
 class Game {
     private $db;
     private $table = 'games';
+    private $cache;
 
     public function __construct() {
         $this->db = Database::getInstance()->getConnection();
+        $this->cache = Cache::getInstance();
     }
 
     /**
@@ -89,6 +92,19 @@ class Game {
      * @return array
      */
     public function getAllWithLatestVersion($page = 1, $limit = 20, $filters = []) {
+        // 캐시 키 생성
+        $cacheKey = 'games_with_versions_' . $page . '_' . $limit . '_' . md5(serialize($filters));
+
+        // 캐시 확인 (5분 캐싱)
+        return $this->cache->remember($cacheKey, function() use ($page, $limit, $filters) {
+            return $this->fetchGamesWithVersions($page, $limit, $filters);
+        }, 300);
+    }
+
+    /**
+     * 캐시되지 않은 실제 게임 목록 조회
+     */
+    private function fetchGamesWithVersions($page, $limit, $filters) {
         $offset = ($page - 1) * $limit;
 
         // LATERAL JOIN과 조건부 집계로 최적화된 쿼리
@@ -220,6 +236,9 @@ class Game {
                 ':release_date' => $data['release_date'] ?? null
             ]);
 
+            // 캐시 무효화
+            $this->clearGameCache();
+
             return $this->db->lastInsertId();
         } catch (PDOException $e) {
             error_log('Game::create - ' . $e->getMessage());
@@ -251,7 +270,7 @@ class Game {
 
         try {
             $stmt = $this->db->prepare($sql);
-            return $stmt->execute([
+            $result = $stmt->execute([
                 ':game_id' => $gameId,
                 ':game_name' => $data['game_name'],
                 ':game_name_en' => $data['game_name_en'] ?? null,
@@ -264,6 +283,13 @@ class Game {
                 ':thumbnail_url' => $data['thumbnail_url'] ?? null,
                 ':release_date' => $data['release_date'] ?? null
             ]);
+
+            // 캐시 무효화
+            if ($result) {
+                $this->clearGameCache();
+            }
+
+            return $result;
         } catch (PDOException $e) {
             error_log('Game::update - ' . $e->getMessage());
             return false;
@@ -281,7 +307,14 @@ class Game {
 
         try {
             $stmt = $this->db->prepare($sql);
-            return $stmt->execute([':game_id' => $gameId]);
+            $result = $stmt->execute([':game_id' => $gameId]);
+
+            // 캐시 무효화
+            if ($result) {
+                $this->clearGameCache();
+            }
+
+            return $result;
         } catch (PDOException $e) {
             error_log('Game::delete - ' . $e->getMessage());
             return false;
@@ -321,6 +354,19 @@ class Game {
         } catch (PDOException $e) {
             error_log('Game::getTotalCount - ' . $e->getMessage());
             return 0;
+        }
+    }
+
+    /**
+     * 게임 관련 캐시 무효화
+     */
+    private function clearGameCache() {
+        // 게임 목록 캐시 삭제 (모든 페이지, 필터 조합)
+        $files = glob(__DIR__ . '/../cache/*');
+        foreach ($files as $file) {
+            if (is_file($file) && strpos($file, 'games_') !== false) {
+                unlink($file);
+            }
         }
     }
 }

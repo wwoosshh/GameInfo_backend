@@ -12,10 +12,18 @@ class Response {
      * @param mixed $data 응답 데이터
      * @param string $message 성공 메시지
      * @param int $statusCode HTTP 상태 코드
+     * @param int $cacheTTL 캐시 TTL (초), 0이면 캐싱 안 함
      */
-    public static function success($data = null, $message = 'Success', $statusCode = 200) {
+    public static function success($data = null, $message = 'Success', $statusCode = 200, $cacheTTL = 0) {
         http_response_code($statusCode);
         header('Content-Type: application/json; charset=utf-8');
+
+        // 캐싱 헤더 설정
+        if ($cacheTTL > 0) {
+            self::setCacheHeaders($cacheTTL);
+        } else {
+            self::setNoCacheHeaders();
+        }
 
         echo json_encode([
             'success' => true,
@@ -93,5 +101,31 @@ class Response {
      */
     public static function serverError($message = 'Internal server error') {
         self::error($message, 'SERVER_ERROR', 500);
+    }
+
+    /**
+     * 캐싱 헤더 설정
+     *
+     * @param int $ttl 캐시 유효 시간 (초)
+     */
+    private static function setCacheHeaders($ttl) {
+        $expires = gmdate('D, d M Y H:i:s', time() + $ttl) . ' GMT';
+
+        header("Cache-Control: public, max-age={$ttl}");
+        header("Expires: {$expires}");
+        header("Pragma: public");
+
+        // ETag 생성 (선택적)
+        $etag = md5(json_encode($_SERVER['REQUEST_URI']));
+        header("ETag: \"{$etag}\"");
+    }
+
+    /**
+     * 캐싱 비활성화 헤더 설정
+     */
+    private static function setNoCacheHeaders() {
+        header("Cache-Control: no-cache, no-store, must-revalidate");
+        header("Pragma: no-cache");
+        header("Expires: 0");
     }
 }

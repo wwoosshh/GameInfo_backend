@@ -53,7 +53,8 @@ try {
                 }
 
                 if ($result !== false) {
-                    Response::success($result, 'Games retrieved successfully');
+                    // 5분 캐싱 (300초)
+                    Response::success($result, 'Games retrieved successfully', 200, 300);
                 } else {
                     Response::serverError('Failed to retrieve games');
                 }

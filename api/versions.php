@@ -134,7 +134,7 @@ function getVersionsByGame($db, $gameId) {
         Response::success([
             'versions' => $versions,
             'total' => count($versions)
-        ], 'Versions retrieved successfully');
+        ], 'Versions retrieved successfully', 200, 300); // 5분 캐싱
     } catch (PDOException $e) {
         error_log('getVersionsByGame error: ' . $e->getMessage());
         Response::serverError('Failed to retrieve versions');
