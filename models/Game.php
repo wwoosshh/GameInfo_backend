@@ -27,7 +27,7 @@ class Game {
         $offset = ($page - 1) * $limit;
 
         // 기본 쿼리
-        $sql = "SELECT * FROM {$this->table} WHERE is_active = 1";
+        $sql = "SELECT * FROM {$this->table} WHERE is_active = true";
         $params = [];
 
         // 필터 적용
@@ -113,7 +113,7 @@ class Game {
                         ORDER BY release_date DESC
                         LIMIT 1
                     )
-                WHERE g.is_active = 1";
+                WHERE g.is_active = true";
         $params = [];
 
         // 필터 적용
@@ -173,7 +173,7 @@ class Game {
      * @return array|false
      */
     public function getById($gameId) {
-        $sql = "SELECT * FROM {$this->table} WHERE game_id = :game_id AND is_active = 1";
+        $sql = "SELECT * FROM {$this->table} WHERE game_id = :game_id AND is_active = true";
 
         try {
             $stmt = $this->db->prepare($sql);
@@ -273,7 +273,7 @@ class Game {
      * @return bool
      */
     public function delete($gameId) {
-        $sql = "UPDATE {$this->table} SET is_active = 0 WHERE game_id = :game_id";
+        $sql = "UPDATE {$this->table} SET is_active = false WHERE game_id = :game_id";
 
         try {
             $stmt = $this->db->prepare($sql);
@@ -291,7 +291,7 @@ class Game {
      * @return int
      */
     private function getTotalCount($filters = []) {
-        $sql = "SELECT COUNT(*) as count FROM {$this->table} WHERE is_active = 1";
+        $sql = "SELECT COUNT(*) as count FROM {$this->table} WHERE is_active = true";
         $params = [];
 
         if (!empty($filters['platform'])) {

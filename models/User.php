@@ -17,7 +17,7 @@ class User {
      * 사용자 이름으로 조회
      */
     public function getByUsername($username) {
-        $sql = "SELECT * FROM {$this->table} WHERE username = :username AND is_active = 1";
+        $sql = "SELECT * FROM {$this->table} WHERE username = :username AND is_active = true";
 
         try {
             $stmt = $this->db->prepare($sql);
@@ -34,7 +34,7 @@ class User {
      */
     public function getById($userId) {
         $sql = "SELECT user_id, username, email, display_name, is_admin, created_at
-                FROM {$this->table} WHERE user_id = :user_id AND is_active = 1";
+                FROM {$this->table} WHERE user_id = :user_id AND is_active = true";
 
         try {
             $stmt = $this->db->prepare($sql);
