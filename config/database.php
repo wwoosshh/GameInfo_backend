@@ -62,16 +62,36 @@ class Database {
     }
 
     /**
-     * 설정 파일 로드
+     * 설정 파일 로드 (파일 또는 환경 변수)
      */
     private function loadConfig() {
+        $config = [];
+
+        // Railway 등 클라우드 환경에서는 환경 변수 우선 사용
+        if (getenv('DB_HOST')) {
+            $config['DB_HOST'] = getenv('DB_HOST');
+            $config['DB_PORT'] = getenv('DB_PORT') ?: '6543';
+            $config['DB_NAME'] = getenv('DB_NAME') ?: 'postgres';
+            $config['DB_USER'] = getenv('DB_USER');
+            $config['DB_PASSWORD'] = getenv('DB_PASSWORD');
+            $config['DB_CHARSET'] = getenv('DB_CHARSET') ?: 'utf8';
+            $config['ENVIRONMENT'] = getenv('ENVIRONMENT') ?: 'production';
+            $config['JWT_SECRET'] = getenv('JWT_SECRET');
+            $config['JWT_EXPIRATION'] = getenv('JWT_EXPIRATION') ?: '86400';
+            $config['CLOUDINARY_CLOUD_NAME'] = getenv('CLOUDINARY_CLOUD_NAME');
+            $config['CLOUDINARY_API_KEY'] = getenv('CLOUDINARY_API_KEY');
+            $config['CLOUDINARY_API_SECRET'] = getenv('CLOUDINARY_API_SECRET');
+
+            return $config;
+        }
+
+        // 로컬 환경에서는 .env 파일 사용
         $configFile = __DIR__ . '/../../config/.env';
 
         if (!file_exists($configFile)) {
             die('Configuration file not found. Please copy .env.example to .env and configure it.');
         }
 
-        $config = [];
         $lines = file($configFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
         foreach ($lines as $line) {
