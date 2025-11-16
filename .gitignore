@@ -1,0 +1,42 @@
+# 환경 변수 파일
+.env
+*.env
+!.env.example
+
+# 임시 파일
+*.log
+*.tmp
+*.cache
+
+# 에디터 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PHP
+vendor/
+composer.phar
+composer.lock
+
+# 테스트 파일
+test_*.php
+debug_*.php
+create_admin.php
+test_password.php
+test_login.php
+
+# 백업 파일
+*.bak
+*.backup
+backup/
+
+# 업로드 파일 (Cloudinary 사용하므로 로컬 업로드 제외)
+uploads/
+temp/
