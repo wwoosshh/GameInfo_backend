@@ -74,23 +74,28 @@ class CalendarEvent {
 
         try {
             $stmt = $this->db->prepare($sql);
-            $result = $stmt->execute([
-                ':user_id' => $data['user_id'],
-                ':event_title' => $data['event_title'],
-                ':event_description' => $data['event_description'] ?? null,
-                ':event_date' => $data['event_date'],
-                ':event_time' => $data['event_time'] ?? null,
-                ':is_all_day' => $data['is_all_day'] ?? false
-            ]);
+
+            // Boolean을 정수로 변환 (PostgreSQL 호환)
+            $isAllDay = $data['is_all_day'] ?? false;
+
+            $stmt->bindValue(':user_id', $data['user_id'], PDO::PARAM_INT);
+            $stmt->bindValue(':event_title', $data['event_title'], PDO::PARAM_STR);
+            $stmt->bindValue(':event_description', $data['event_description'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(':event_date', $data['event_date'], PDO::PARAM_STR);
+            $stmt->bindValue(':event_time', $data['event_time'] ?? null, PDO::PARAM_STR);
+            $stmt->bindValue(':is_all_day', $isAllDay ? 1 : 0, PDO::PARAM_INT);
+
+            $result = $stmt->execute();
 
             if ($result) {
-                return $this->db->lastInsertId();
+                $lastId = $this->db->lastInsertId();
+                error_log('CalendarEvent::create - Successfully created event with ID: ' . $lastId);
+                return $lastId;
             }
             return false;
         } catch (PDOException $e) {
-            error_log('CalendarEvent::create - ' . $e->getMessage());
-            error_log('CalendarEvent::create - SQL: ' . $sql);
-            error_log('CalendarEvent::create - Data: ' . json_encode($data));
+            error_log('CalendarEvent::create - PDO Exception: ' . $e->getMessage());
+            error_log('CalendarEvent::create - SQL State: ' . $e->getCode());
             return false;
         }
     }
