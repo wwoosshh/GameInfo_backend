@@ -117,6 +117,14 @@ class Auth {
     }
 
     /**
+     * 현재 사용자 ID 가져오기
+     */
+    public static function getUserId() {
+        $user = self::getCurrentUser();
+        return $user ? $user['user_id'] : null;
+    }
+
+    /**
      * 사용자가 특정 역할을 가지고 있는지 확인
      */
     public static function hasRole($user, $roleName) {
