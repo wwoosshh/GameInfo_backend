@@ -138,8 +138,9 @@ function handleCreateEvent($eventModel) {
     }
 
     // 시간 형식 검증 (선택적)
-    if (!empty($data['event_time'])) {
-        if (!preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $data['event_time'])) {
+    $eventTime = isset($data['event_time']) && $data['event_time'] !== '' ? $data['event_time'] : null;
+    if ($eventTime !== null) {
+        if (!preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $eventTime)) {
             Response::error('Invalid time format (expected HH:MM or HH:MM:SS)', 400);
         }
     }
@@ -148,9 +149,9 @@ function handleCreateEvent($eventModel) {
     $eventData = [
         'user_id' => $userId,
         'event_title' => trim($data['event_title']),
-        'event_description' => isset($data['event_description']) ? trim($data['event_description']) : null,
+        'event_description' => isset($data['event_description']) && $data['event_description'] !== '' ? trim($data['event_description']) : null,
         'event_date' => $eventDate,
-        'event_time' => !empty($data['event_time']) ? $data['event_time'] : null,
+        'event_time' => $eventTime,
         'event_type' => isset($data['event_type']) ? $data['event_type'] : 'personal',
         'is_all_day' => isset($data['is_all_day']) ? (bool)$data['is_all_day'] : false
     ];
@@ -202,7 +203,7 @@ function handleUpdateEvent($eventModel, $eventId) {
     }
 
     if (isset($data['event_description'])) {
-        $updateData['event_description'] = trim($data['event_description']);
+        $updateData['event_description'] = ($data['event_description'] !== '' ? trim($data['event_description']) : null);
     }
 
     if (isset($data['event_date'])) {
@@ -213,10 +214,11 @@ function handleUpdateEvent($eventModel, $eventId) {
     }
 
     if (isset($data['event_time'])) {
-        if (!empty($data['event_time']) && !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $data['event_time'])) {
+        $timeValue = ($data['event_time'] !== '' && $data['event_time'] !== null) ? $data['event_time'] : null;
+        if ($timeValue !== null && !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $timeValue)) {
             Response::error('Invalid time format (expected HH:MM or HH:MM:SS)', 400);
         }
-        $updateData['event_time'] = !empty($data['event_time']) ? $data['event_time'] : null;
+        $updateData['event_time'] = $timeValue;
     }
 
     if (isset($data['event_type'])) {
