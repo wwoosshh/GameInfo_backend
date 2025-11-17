@@ -84,19 +84,8 @@ function handleGetUsers($db) {
                 u.last_login,
                 u.post_count,
                 u.comment_count,
-                u.reputation_score,
-                COALESCE(
-                    json_agg(
-                        DISTINCT jsonb_build_object(
-                            'role_id', r.role_id,
-                            'role_name', r.role_name
-                        )
-                    ) FILTER (WHERE r.role_id IS NOT NULL),
-                    '[]'
-                ) as roles
+                u.reputation_score
             FROM users u
-            LEFT JOIN user_roles ur ON u.user_id = ur.user_id
-            LEFT JOIN roles r ON ur.role_id = r.role_id
             WHERE 1=1";
 
     $params = [];
@@ -111,8 +100,7 @@ function handleGetUsers($db) {
         $params[':is_active'] = $isActive === 'true' ? 1 : 0;
     }
 
-    $sql .= " GROUP BY u.user_id
-              ORDER BY u.created_at DESC
+    $sql .= " ORDER BY u.created_at DESC
               LIMIT :limit OFFSET :offset";
 
     try {
@@ -125,9 +113,15 @@ function handleGetUsers($db) {
         $stmt->execute();
         $users = $stmt->fetchAll();
 
-        // 각 유저의 roles를 JSON 디코딩
+        // 각 유저에 대해 roles 조회
         foreach ($users as &$user) {
-            $user['roles'] = json_decode($user['roles'], true);
+            $rolesSql = "SELECT r.role_id, r.role_name
+                        FROM user_roles ur
+                        JOIN roles r ON ur.role_id = r.role_id
+                        WHERE ur.user_id = :user_id";
+            $rolesStmt = $db->prepare($rolesSql);
+            $rolesStmt->execute([':user_id' => $user['user_id']]);
+            $user['roles'] = $rolesStmt->fetchAll();
         }
 
         // 전체 개수 조회
@@ -167,23 +161,7 @@ function handleGetUsers($db) {
  * 특정 유저 상세 조회
  */
 function handleGetUser($db, $userId) {
-    $sql = "SELECT
-                u.*,
-                COALESCE(
-                    json_agg(
-                        DISTINCT jsonb_build_object(
-                            'role_id', r.role_id,
-                            'role_name', r.role_name,
-                            'granted_at', ur.granted_at
-                        )
-                    ) FILTER (WHERE r.role_id IS NOT NULL),
-                    '[]'
-                ) as roles
-            FROM users u
-            LEFT JOIN user_roles ur ON u.user_id = ur.user_id
-            LEFT JOIN roles r ON ur.role_id = r.role_id
-            WHERE u.user_id = :user_id
-            GROUP BY u.user_id";
+    $sql = "SELECT u.* FROM users u WHERE u.user_id = :user_id";
 
     try {
         $stmt = $db->prepare($sql);
@@ -194,7 +172,14 @@ function handleGetUser($db, $userId) {
             Response::error('User not found', 404);
         }
 
-        $user['roles'] = json_decode($user['roles'], true);
+        // roles 조회
+        $rolesSql = "SELECT r.role_id, r.role_name, ur.granted_at
+                    FROM user_roles ur
+                    JOIN roles r ON ur.role_id = r.role_id
+                    WHERE ur.user_id = :user_id";
+        $rolesStmt = $db->prepare($rolesSql);
+        $rolesStmt->execute([':user_id' => $userId]);
+        $user['roles'] = $rolesStmt->fetchAll();
 
         Response::success($user);
     } catch (PDOException $e) {
