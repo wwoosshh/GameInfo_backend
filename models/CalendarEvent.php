@@ -66,26 +66,31 @@ class CalendarEvent {
      * 일정 생성
      */
     public function create($data) {
+        // event_type은 데이터베이스 기본값 사용
         $sql = "INSERT INTO {$this->table}
-                (user_id, event_title, event_description, event_date, event_time, event_type, is_all_day)
+                (user_id, event_title, event_description, event_date, event_time, is_all_day)
                 VALUES
-                (:user_id, :event_title, :event_description, :event_date, :event_time, :event_type, :is_all_day)";
+                (:user_id, :event_title, :event_description, :event_date, :event_time, :is_all_day)";
 
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->execute([
+            $result = $stmt->execute([
                 ':user_id' => $data['user_id'],
                 ':event_title' => $data['event_title'],
                 ':event_description' => $data['event_description'] ?? null,
                 ':event_date' => $data['event_date'],
                 ':event_time' => $data['event_time'] ?? null,
-                ':event_type' => $data['event_type'] ?? 'personal',
                 ':is_all_day' => $data['is_all_day'] ?? false
             ]);
 
-            return $this->db->lastInsertId();
+            if ($result) {
+                return $this->db->lastInsertId();
+            }
+            return false;
         } catch (PDOException $e) {
             error_log('CalendarEvent::create - ' . $e->getMessage());
+            error_log('CalendarEvent::create - SQL: ' . $sql);
+            error_log('CalendarEvent::create - Data: ' . json_encode($data));
             return false;
         }
     }
@@ -113,6 +118,8 @@ class CalendarEvent {
             return $stmt->execute($params);
         } catch (PDOException $e) {
             error_log('CalendarEvent::update - ' . $e->getMessage());
+            error_log('CalendarEvent::update - SQL: ' . $sql);
+            error_log('CalendarEvent::update - Data: ' . json_encode($data));
             return false;
         }
     }

@@ -126,8 +126,12 @@ function handleCreateEvent($eventModel) {
     // 요청 데이터 파싱
     $data = json_decode(file_get_contents('php://input'), true);
 
+    // 디버깅: 받은 데이터 로깅
+    error_log('Calendar Event Create - Received data: ' . json_encode($data));
+
     // 필수 필드 검증
     if (empty($data['event_title']) || empty($data['event_date'])) {
+        error_log('Calendar Event Create - Missing required fields');
         Response::error('Title and date are required', 400);
     }
 
@@ -152,15 +156,19 @@ function handleCreateEvent($eventModel) {
         'event_description' => isset($data['event_description']) && $data['event_description'] !== '' ? trim($data['event_description']) : null,
         'event_date' => $eventDate,
         'event_time' => $eventTime,
-        'event_type' => isset($data['event_type']) ? $data['event_type'] : 'personal',
+        // event_type은 생략하여 DB 기본값('personal') 사용
         'is_all_day' => isset($data['is_all_day']) ? (bool)$data['is_all_day'] : false
     ];
 
+    error_log('Calendar Event Create - Attempting to create event: ' . json_encode($eventData));
     $eventId = $eventModel->create($eventData);
 
     if (!$eventId) {
+        error_log('Calendar Event Create - Failed to create event in database');
         Response::error('Failed to create event', 500);
     }
+
+    error_log('Calendar Event Create - Successfully created event with ID: ' . $eventId);
 
     // 생성된 일정 조회
     $event = $eventModel->getById($eventId);
