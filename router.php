@@ -6,6 +6,23 @@
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
+// /api/admin/users -> /api/admin/users.php
+// /api/admin/posts -> /api/admin/posts.php
+if (preg_match('/^\/api\/admin\/([\w-]+)/', $uri, $matches)) {
+    $endpoint = $matches[1];
+
+    // 하이픈을 언더스코어로 변환 (파일명 규칙)
+    $filename = str_replace('-', '_', $endpoint);
+
+    // Admin API 파일 경로
+    $apiFile = __DIR__ . "/api/admin/{$filename}.php";
+
+    if (file_exists($apiFile)) {
+        require $apiFile;
+        return true;
+    }
+}
+
 // /api/auth/login -> /api/auth.php (login 처리)
 // /api/games -> /api/games.php
 // /api/versions/123/items -> /api/versions.php (123과 items 처리)
