@@ -9,11 +9,15 @@ $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 // /api/auth/login -> /api/auth.php (login 처리)
 // /api/games -> /api/games.php
 // /api/versions/123/items -> /api/versions.php (123과 items 처리)
-if (preg_match('/^\/api\/(\w+)/', $uri, $matches)) {
+// /api/calendar-events -> /api/calendar_events.php
+if (preg_match('/^\/api\/([\w-]+)/', $uri, $matches)) {
     $endpoint = $matches[1];
 
+    // 하이픈을 언더스코어로 변환 (파일명 규칙)
+    $filename = str_replace('-', '_', $endpoint);
+
     // API 파일 경로
-    $apiFile = __DIR__ . "/api/{$endpoint}.php";
+    $apiFile = __DIR__ . "/api/{$filename}.php";
 
     if (file_exists($apiFile)) {
         require $apiFile;
