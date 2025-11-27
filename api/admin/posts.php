@@ -87,6 +87,7 @@ function handleGetPosts($db) {
             WHERE 1=1";
 
     $params = [];
+    $boolParams = [];
 
     if ($search) {
         $sql .= " AND (p.title LIKE :search OR p.content LIKE :search)";
@@ -98,14 +99,14 @@ function handleGetPosts($db) {
         $params[':category'] = $category;
     }
 
-    if ($isDeleted !== null) {
+    if ($isDeleted !== null && $isDeleted !== '') {
         $sql .= " AND p.is_deleted = :is_deleted";
-        $params[':is_deleted'] = $isDeleted === 'true' ? 1 : 0;
+        $boolParams[':is_deleted'] = $isDeleted === 'true';
     }
 
-    if ($isPinned !== null) {
+    if ($isPinned !== null && $isPinned !== '') {
         $sql .= " AND p.is_pinned = :is_pinned";
-        $params[':is_pinned'] = $isPinned === 'true' ? 1 : 0;
+        $boolParams[':is_pinned'] = $isPinned === 'true';
     }
 
     $sql .= " ORDER BY p.created_at DESC
@@ -115,6 +116,9 @@ function handleGetPosts($db) {
         $stmt = $db->prepare($sql);
         foreach ($params as $key => $value) {
             $stmt->bindValue($key, $value);
+        }
+        foreach ($boolParams as $key => $value) {
+            $stmt->bindValue($key, $value, PDO::PARAM_BOOL);
         }
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
@@ -129,18 +133,19 @@ function handleGetPosts($db) {
         if ($category) {
             $countSql .= " AND p.category = :category";
         }
-        if ($isDeleted !== null) {
+        if ($isDeleted !== null && $isDeleted !== '') {
             $countSql .= " AND p.is_deleted = :is_deleted";
         }
-        if ($isPinned !== null) {
+        if ($isPinned !== null && $isPinned !== '') {
             $countSql .= " AND p.is_pinned = :is_pinned";
         }
 
         $countStmt = $db->prepare($countSql);
         foreach ($params as $key => $value) {
-            if ($key !== ':limit' && $key !== ':offset') {
-                $countStmt->bindValue($key, $value);
-            }
+            $countStmt->bindValue($key, $value);
+        }
+        foreach ($boolParams as $key => $value) {
+            $countStmt->bindValue($key, $value, PDO::PARAM_BOOL);
         }
         $countStmt->execute();
         $total = $countStmt->fetchColumn();
@@ -198,21 +203,22 @@ function handleUpdatePost($db, $postId) {
     $data = json_decode(file_get_contents('php://input'), true);
 
     $fields = [];
-    $params = [':post_id' => $postId];
+    $params = [];
+    $boolParams = [];
 
     if (isset($data['is_pinned'])) {
         $fields[] = "is_pinned = :is_pinned";
-        $params[':is_pinned'] = $data['is_pinned'] ? 1 : 0;
+        $boolParams[':is_pinned'] = (bool)$data['is_pinned'];
     }
 
     if (isset($data['is_locked'])) {
         $fields[] = "is_locked = :is_locked";
-        $params[':is_locked'] = $data['is_locked'] ? 1 : 0;
+        $boolParams[':is_locked'] = (bool)$data['is_locked'];
     }
 
     if (isset($data['is_deleted'])) {
         $fields[] = "is_deleted = :is_deleted";
-        $params[':is_deleted'] = $data['is_deleted'] ? 1 : 0;
+        $boolParams[':is_deleted'] = (bool)$data['is_deleted'];
 
         if ($data['is_deleted']) {
             $fields[] = "deleted_at = NOW()";
@@ -234,7 +240,21 @@ function handleUpdatePost($db, $postId) {
 
     try {
         $stmt = $db->prepare($sql);
-        $success = $stmt->execute($params);
+
+        // post_id 바인딩
+        $stmt->bindValue(':post_id', $postId, PDO::PARAM_INT);
+
+        // boolean 파라미터 바인딩
+        foreach ($boolParams as $key => $value) {
+            $stmt->bindValue($key, $value, PDO::PARAM_BOOL);
+        }
+
+        // 일반 파라미터 바인딩
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+
+        $success = $stmt->execute();
 
         if ($success) {
             // 수정된 게시글 정보 반환

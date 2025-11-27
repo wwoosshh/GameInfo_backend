@@ -78,6 +78,7 @@ function handleGetComments($db) {
             WHERE 1=1";
 
     $params = [];
+    $boolParams = [];
 
     if ($search) {
         $sql .= " AND c.content LIKE :search";
@@ -89,9 +90,9 @@ function handleGetComments($db) {
         $params[':post_id'] = $postId;
     }
 
-    if ($isDeleted !== null) {
+    if ($isDeleted !== null && $isDeleted !== '') {
         $sql .= " AND c.is_deleted = :is_deleted";
-        $params[':is_deleted'] = $isDeleted === 'true' ? 1 : 0;
+        $boolParams[':is_deleted'] = $isDeleted === 'true';
     }
 
     $sql .= " ORDER BY c.created_at DESC
@@ -101,6 +102,9 @@ function handleGetComments($db) {
         $stmt = $db->prepare($sql);
         foreach ($params as $key => $value) {
             $stmt->bindValue($key, $value);
+        }
+        foreach ($boolParams as $key => $value) {
+            $stmt->bindValue($key, $value, PDO::PARAM_BOOL);
         }
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
@@ -115,15 +119,16 @@ function handleGetComments($db) {
         if ($postId) {
             $countSql .= " AND c.post_id = :post_id";
         }
-        if ($isDeleted !== null) {
+        if ($isDeleted !== null && $isDeleted !== '') {
             $countSql .= " AND c.is_deleted = :is_deleted";
         }
 
         $countStmt = $db->prepare($countSql);
         foreach ($params as $key => $value) {
-            if ($key !== ':limit' && $key !== ':offset') {
-                $countStmt->bindValue($key, $value);
-            }
+            $countStmt->bindValue($key, $value);
+        }
+        foreach ($boolParams as $key => $value) {
+            $countStmt->bindValue($key, $value, PDO::PARAM_BOOL);
         }
         $countStmt->execute();
         $total = $countStmt->fetchColumn();
