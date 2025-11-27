@@ -76,7 +76,7 @@ function handleGetProfile($user) {
     $db = Database::getInstance()->getConnection();
 
     $sql = "SELECT user_id, username, email, display_name, avatar_url,
-                   bio, is_active, created_at, last_login_at
+                   bio, is_active, created_at, last_login
             FROM users
             WHERE user_id = :user_id";
 
@@ -107,21 +107,27 @@ function getUserStats($userId) {
     $db = Database::getInstance()->getConnection();
 
     try {
-        // 게시글 수
-        $stmt = $db->prepare("SELECT COUNT(*) as count FROM posts WHERE user_id = :user_id AND is_deleted = false");
-        $stmt->execute([':user_id' => $userId]);
+        // 게시글 수 - PostgreSQL boolean 바인딩
+        $stmt = $db->prepare("SELECT COUNT(*) as count FROM posts WHERE user_id = :user_id AND is_deleted = :is_deleted");
+        $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':is_deleted', false, PDO::PARAM_BOOL);
+        $stmt->execute();
         $postsCount = $stmt->fetch()['count'];
 
         // 댓글 수
-        $stmt = $db->prepare("SELECT COUNT(*) as count FROM comments WHERE user_id = :user_id AND is_deleted = false");
-        $stmt->execute([':user_id' => $userId]);
+        $stmt = $db->prepare("SELECT COUNT(*) as count FROM comments WHERE user_id = :user_id AND is_deleted = :is_deleted");
+        $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':is_deleted', false, PDO::PARAM_BOOL);
+        $stmt->execute();
         $commentsCount = $stmt->fetch()['count'];
 
         // 받은 좋아요 수 (게시글)
         $stmt = $db->prepare("SELECT COALESCE(SUM(p.like_count), 0) as count
                               FROM posts p
-                              WHERE p.user_id = :user_id AND p.is_deleted = false");
-        $stmt->execute([':user_id' => $userId]);
+                              WHERE p.user_id = :user_id AND p.is_deleted = :is_deleted");
+        $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':is_deleted', false, PDO::PARAM_BOOL);
+        $stmt->execute();
         $likesReceived = $stmt->fetch()['count'];
 
         // 북마크 수
@@ -136,7 +142,7 @@ function getUserStats($userId) {
             'bookmarks_count' => (int)$bookmarksCount
         ];
     } catch (PDOException $e) {
-        error_log('getUserStats - ' . $e->getMessage());
+        error_log('getUserStats error: ' . $e->getMessage());
         return [
             'posts_count' => 0,
             'comments_count' => 0,
