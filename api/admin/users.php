@@ -196,12 +196,13 @@ function handleUpdateUser($db, $userId) {
     $data = json_decode(file_get_contents('php://input'), true);
 
     $fields = [];
-    $params = [':user_id' => $userId];
+    $params = [];
+    $boolParams = []; // boolean 파라미터는 별도 처리
 
     if (isset($data['is_active'])) {
         $fields[] = "is_active = :is_active";
-        // PostgreSQL uses native boolean (true/false), not 1/0
-        $params[':is_active'] = (bool)$data['is_active'];
+        // boolean은 bindValue로 PDO::PARAM_BOOL 타입 지정 필요
+        $boolParams[':is_active'] = (bool)$data['is_active'];
     }
 
     if (isset($data['display_name'])) {
@@ -224,7 +225,21 @@ function handleUpdateUser($db, $userId) {
 
     try {
         $stmt = $db->prepare($sql);
-        $success = $stmt->execute($params);
+
+        // user_id 바인딩
+        $stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
+
+        // boolean 파라미터 바인딩 (PDO::PARAM_BOOL 사용)
+        foreach ($boolParams as $key => $value) {
+            $stmt->bindValue($key, $value, PDO::PARAM_BOOL);
+        }
+
+        // 일반 문자열 파라미터 바인딩
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+
+        $success = $stmt->execute();
 
         if ($success) {
             // 수정된 유저 정보 반환
