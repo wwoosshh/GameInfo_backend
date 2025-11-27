@@ -130,7 +130,7 @@ function handleGetUsers($db) {
         if ($search) {
             $countSql .= " AND (u.username LIKE :search OR u.email LIKE :search OR u.display_name LIKE :search)";
         }
-        if ($isActive !== null) {
+        if ($isActive !== null && $isActive !== '') {
             $countSql .= " AND u.is_active = :is_active";
         }
 
