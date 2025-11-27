@@ -95,9 +95,10 @@ function handleGetUsers($db) {
         $params[':search'] = '%' . $search . '%';
     }
 
-    if ($isActive !== null) {
+    if ($isActive !== null && $isActive !== '') {
         $sql .= " AND u.is_active = :is_active";
-        $params[':is_active'] = $isActive === 'true' ? 1 : 0;
+        // PostgreSQL uses native boolean (true/false), not 1/0
+        $params[':is_active'] = $isActive === 'true';
     }
 
     $sql .= " ORDER BY u.created_at DESC
@@ -199,7 +200,8 @@ function handleUpdateUser($db, $userId) {
 
     if (isset($data['is_active'])) {
         $fields[] = "is_active = :is_active";
-        $params[':is_active'] = $data['is_active'] ? 1 : 0;
+        // PostgreSQL uses native boolean (true/false), not 1/0
+        $params[':is_active'] = (bool)$data['is_active'];
     }
 
     if (isset($data['display_name'])) {
